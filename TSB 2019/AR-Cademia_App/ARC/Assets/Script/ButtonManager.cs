@@ -5,55 +5,55 @@ using UnityEngine.UI;
 
 public class ButtonManager : MonoBehaviour
 {
-    [SerializeField] private HandTrack hand;
-    [SerializeField] private Button[] button;
-    [SerializeField] private Button rotateButton;
-    [SerializeField] private string[] info;
+    [SerializeField] private HandTrack hand;                //tangan
+    [SerializeField] private GameObject[] button;           //list tombol
+    [SerializeField] private GameObject rotateButton;       //tombol rotasi
+    [SerializeField] private string[] info;                 //info yang ingin ditampilkan
 
-    [SerializeField] Text infoText;
-    [SerializeField] Canvas canvas;
-
-    int buttonChoose;
-    private bool isRotate;
+    [SerializeField] Text infoText;                         //Text tempat info
+    [SerializeField] Canvas canvas;                         //canvas
+    
+    [HideInInspector] public bool isRotate;                 //sedang rotasi?
 
     // Start is called before the first frame update
     void Start()
     {
-        isRotate = false;
+        isRotate = true;
+        canvas.gameObject.SetActive(false);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(hand.buttonChoose != null)
+        if(hand.buttonChoose != null)       //jika tangan menyentuh objek tombol
         {
-            canvas.gameObject.SetActive(true);
+            canvas.gameObject.SetActive(true);      //memunculkan canvas
 
-            if(hand.buttonChoose == rotateButton)
+            if(hand.buttonChoose == rotateButton)   //jika tombol yang disentuh adalah tombol rotasi
             {
-                if (isRotate)
+                if (isRotate)                   //jika sedang rotasi
                 {
-                    isRotate = false;
+                    isRotate = false;           //menghentikan rotasi
                 }
-                else
+                else                            //jika tidak rotasi
                 {
-                    isRotate = true;
+                    isRotate = true;            //memulai rotasi
                 }
             }
-            else
+            else                                //jika tombol yang disentuh adalah yang lainnya
             {
-                for (int i = 0; i < button.Length; i++)
+                for (int i = 0; i < button.Length; i++)     //mencari tombol yang mana yang dipilih
                 {
-                    if(hand.buttonChoose == button[i])
+                    if(hand.buttonChoose == button[i])      //jika tombol yang dipilih ketemu
                     {
-                        infoText.text = info[i];
+                        infoText.text = info[i];            //menampilkan info
                     }
                 }
             }
         }
-        else
+        else        //jika tidak ada tombol yang disentuh
         {
-            canvas.gameObject.SetActive(false);
+            canvas.gameObject.SetActive(false);     //menonaktifkan canvas
         }
     }
 }

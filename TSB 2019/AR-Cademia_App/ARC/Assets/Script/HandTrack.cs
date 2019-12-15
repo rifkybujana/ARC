@@ -6,24 +6,21 @@ using GoogleARCore;
 
 public class HandTrack : MonoBehaviour
 {
-    [Tooltip("AR Camera")]
-    [SerializeField] private Camera FirstPersonCamera;
-    [Tooltip("Object to place")]
-    [SerializeField] private GameObject objectToPlace;
     [Tooltip("bluetooth manager")]
     [SerializeField] private BluetoothController BTController;  //bluetooth manager
     [Tooltip("Object tangan")]
     [SerializeField] private GameObject hand;                   //object tangan
-    [Tooltip("Object untuk membandingkan posisi tangan")]
-    [SerializeField] private GameObject Point;                  //point untuk membandingkan posisi tangan di real life dengan virtual    
     [Tooltip("tag object yang ingin dikendalikan")]
     [SerializeField] private string objectTag;                  //tag object yang ingin dikendalikan
-
+    [Tooltip("Tag button yang ingin dikendalikan")]
     [SerializeField] private string buttonTag;
 
     [HideInInspector] public string handState;                  //status tangan
     [HideInInspector] public GameObject target;
     [HideInInspector] public GameObject buttonChoose;
+
+    private GameObject Point;                  //point untuk membandingkan posisi tangan di real life dengan virtual 
+    private GameMan GameManager;
 
     string[] data;
 
@@ -32,11 +29,13 @@ public class HandTrack : MonoBehaviour
     float[] pos, rot;
 
     bool check = false;                                     //memastikan bahwa hanya mengecek skala sekali saja
-    bool started = false;                                   //memulai hanya sekali
+    [HideInInspector] public bool started = false;                                   //memulai hanya sekali
     bool isMove, isChoose, isGrep;                          //tangan sedang apa?
     bool isPlaced = false;
 
-    private const float k_PrefabRotation = 180.0f;
+    private Vector3 selisihJarak;
+
+    [Space(5)] public Text deviceNotConnected;
 
     // Start is called before the first frame update
     void Start()
@@ -44,73 +43,50 @@ public class HandTrack : MonoBehaviour
         check = false;
         started = false;
 
-        Point.gameObject.SetActive(true);
+        Point = GameManager.point;
     }
 
     // Update is called once per frame
     void Update()
     {
-        _UpdateApplicationLifecycle();              //mengecek jika sedang mendeteksi sekitar
-        GetData();                                  //get data of hands
-
-        TrackableHit hit;
-        TrackableHitFlags raycastFilter = TrackableHitFlags.PlaneWithinPolygon |
-                TrackableHitFlags.FeaturePointWithSurfaceNormal;
-
-        if (handState == "Start") started = true;
-
-        if (started)                                //jika sudah dimulai
+        if (BTController.device.IsConnected)            //jika sudah terhubung ke device
         {
-            if(Frame.Raycast(0.5f,0.5f, raycastFilter,out hit))
+            deviceNotConnected.gameObject.SetActive(false);     //menghilangkan tulisan "device not connected" di screen
+
+            if(Point == null) Point = GameObject.FindGameObjectWithTag("point");    //mencari objek point jika objeknya null
+
+            GetData();                                  //get data of hands
+
+            if (handState == "Start") started = true;   //jika tangan memberi data "Start"
+
+            if (started)                                //jika sudah dimulai
             {
-                if ((hit.Trackable is DetectedPlane) && Vector3.Dot(FirstPersonCamera.transform.position - hit.Pose.position, hit.Pose.rotation * Vector3.up) < 0)
+                if (check == false) checkScale(); //jika belum mengecek skala, langsung mengecek skala
+                else                              //jika sudah mengecek skala
                 {
-                    Debug.Log("Hit at back of the current DetectedPlane");
-                }
-                else
-                {
-                    var ObjectPlaced = Instantiate(objectToPlace, hit.Pose.position, hit.Pose.rotation);
+                    Point.gameObject.SetActive(false);
 
-                    objectToPlace.transform.Rotate(0, k_PrefabRotation, 0, Space.Self);
+                    getPos();                     //mengkalkulasikan untuk mendapat posisi di ruang virtual
+                    getRot();                     //mengkalkulasikan untuk mendapat rotasi di ruang virtual
 
-                    var anchor = hit.Trackable.CreateAnchor(hit.Pose);
-                    objectToPlace.transform.parent = anchor.transform;
+                    hand.transform.position = new Vector3(pos[0], pos[1], pos[2]);          //update posisi objek "tangan" di ruang virtual berdasarkan posisi asli
+                    hand.transform.rotation = new Quaternion(rot[0], rot[1], rot[2], 0);    //update rotasi objek "tangan" di ruang virtual berdasarkan rotasi asli
+                    Point.gameObject.SetActive(false);                                      //menghilangkan object point
+
+                    if (isMove)         //jika tangan menyentuh objek dan berposisi "move"
+                    {
+                        target.gameObject.transform.position = hand.transform.position + selisihJarak;      //mengupdate posisi objek berdasarkan tangan
+                    }else if (isGrep)   //jika tangan menyentuh objek dan berposisi "grep"
+                    {
+                        float averageScale = (selisihJarak.x + selisihJarak.y + selisihJarak.z) / 3f;                               //menghitung rata rata selisih
+                        target.gameObject.transform.localScale = new Vector3(averageScale * 2, averageScale * 2, averageScale * 2); //mengupdate ukuran objek berdasarkan posisi tangan
+                    }
                 }
             }
-
-            if (check == false) checkScale(); //jika belum mengecek skala, langsung mengecek skala
-            else                              //jika sudah mengecek skala
-            {
-                getPos();                     //mengkalkulasikan untuk mendapat posisi di ruang virtual
-                getRot();                     //mengkalkulasikan untuk mendapat rotasi di ruang virtual
-
-                hand.transform.position = new Vector3(pos[0], pos[1], pos[2]);          //update posisi objek "tangan" di ruang virtual berdasarkan posisi asli
-                hand.transform.rotation = new Quaternion(rot[0], rot[1], rot[2], 0);    //update rotasi objek "tangan" di ruang virtual berdasarkan rotasi asli
-                Point.gameObject.SetActive(false);                                      //menghilangkan object point
-
-                if (isMove)         //jika tangan menyentuh objek dan berposisi "move"
-                {
-                    Vector3 selisihJarak = target.transform.position - hand.transform.position;         //mengkalkulasikan jarak antara objek dengan tangan
-                    target.gameObject.transform.position = hand.transform.position + selisihJarak;      //mengupdate posisi objek berdasarkan tangan
-                }else if (isGrep)   //jika tangan menyentuh objek dan berposisi "grep"
-                {
-                    Vector3 selisihJarak = target.transform.position - hand.transform.position;                                 //mengkalkulasikan jarak antara objek dengan tangan
-                    float averageScale = (selisihJarak.x + selisihJarak.y + selisihJarak.z) / 3f;                               //menghitung rata rata selisih
-                    target.gameObject.transform.localScale = new Vector3(averageScale * 2, averageScale * 2, averageScale * 2); //mengupdate ukuran objek berdasarkan posisi tangan
-                }
-            }
-        }
-    }
-
-    private void _UpdateApplicationLifecycle()
-    {
-        if (Session.Status != SessionStatus.Tracking)
-        {
-            Screen.sleepTimeout = SleepTimeout.SystemSetting;
         }
         else
         {
-            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            deviceNotConnected.gameObject.SetActive(true);      //memunculkan tulisan di screen "device not connected"
         }
     }
     
@@ -122,7 +98,9 @@ public class HandTrack : MonoBehaviour
     {
         if(other.tag == objectTag) //jika objek tag = tag dari objek
         {
-            target = other.gameObject;  //target = objek yang disentuh
+            target = other.gameObject;                                                                          //target = objek yang disentuh
+
+            selisihJarak = target.transform.position - hand.transform.position;                                 //mengkalkulasikan jarak antara objek dengan tangan
 
             if (handState == "Move")        //jika tangan berbentuk "move"
             {

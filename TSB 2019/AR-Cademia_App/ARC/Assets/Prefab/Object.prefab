@@ -40,7 +40,7 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3471889434519107302}
   m_Material: {fileID: 0}
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_Enabled: 1
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
@@ -137,6 +137,11 @@ PrefabInstance:
       propertyPath: m_Parameters.widthCurve.m_Curve.Array.data[0].time
       value: 0.0032348633
       objectReference: {fileID: 0}
+    - target: {fileID: 2219853772976419734, guid: d655c733ad58dfb4d83d70836f90e381,
+        type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 4205907787206490482, guid: d655c733ad58dfb4d83d70836f90e381,
         type: 3}
       propertyPath: m_Parameters.widthCurve.m_Curve.Array.data[0].value
@@ -147,6 +152,11 @@ PrefabInstance:
       propertyPath: m_Parameters.widthCurve.m_Curve.Array.data[0].time
       value: 0.0032348633
       objectReference: {fileID: 0}
+    - target: {fileID: 4205907787206490482, guid: d655c733ad58dfb4d83d70836f90e381,
+        type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 5328904965198857122, guid: d655c733ad58dfb4d83d70836f90e381,
         type: 3}
       propertyPath: m_Parameters.widthCurve.m_Curve.Array.data[0].value
@@ -156,6 +166,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Parameters.widthCurve.m_Curve.Array.data[0].time
       value: 0.0032348633
+      objectReference: {fileID: 0}
+    - target: {fileID: 5328904965198857122, guid: d655c733ad58dfb4d83d70836f90e381,
+        type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d655c733ad58dfb4d83d70836f90e381, type: 3}

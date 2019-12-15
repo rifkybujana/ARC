@@ -6,7 +6,7 @@ using TechTweaking.Bluetooth;
 
 public class BluetoothController : MonoBehaviour
 {
-    private BluetoothDevice device; //bluetooth device
+    [HideInInspector] public BluetoothDevice device; //bluetooth device
     public Text statusText;         //status
 
     [HideInInspector]

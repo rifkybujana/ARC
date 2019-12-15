@@ -6,6 +6,8 @@ TagManager:
   tags:
   - ManipulationSystem
   - Selectable
+  - Butt
+  - point
   layers:
   - Default
   - TransparentFX
