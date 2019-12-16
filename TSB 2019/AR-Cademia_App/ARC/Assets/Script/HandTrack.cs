@@ -19,8 +19,9 @@ public class HandTrack : MonoBehaviour
     [HideInInspector] public GameObject target;
     [HideInInspector] public GameObject buttonChoose;
 
-    private GameObject Point;                  //point untuk membandingkan posisi tangan di real life dengan virtual 
-    private GameMan GameManager;
+    public GameObject Point;                  //point untuk membandingkan posisi tangan di real life dengan virtual 
+
+    public Text statText;
 
     string[] data;
 
@@ -42,8 +43,7 @@ public class HandTrack : MonoBehaviour
     {
         check = false;
         started = false;
-
-        Point = GameManager.point;
+        statText.text = "Not Started";
     }
 
     // Update is called once per frame
@@ -53,33 +53,51 @@ public class HandTrack : MonoBehaviour
         {
             deviceNotConnected.gameObject.SetActive(false);     //menghilangkan tulisan "device not connected" di screen
 
-            if(Point == null) Point = GameObject.FindGameObjectWithTag("point");    //mencari objek point jika objeknya null
-
             GetData();                                  //get data of hands
+
+            Point = GameObject.Find("Pointer");
 
             if (handState == "Start") started = true;   //jika tangan memberi data "Start"
 
             if (started)                                //jika sudah dimulai
             {
-                if (check == false) checkScale(); //jika belum mengecek skala, langsung mengecek skala
+                statText.text = "Started";
+                if (Point == null) Point = GameObject.FindGameObjectWithTag("point");    //mencari objek point jika objeknya null
+
+                if (check == false)
+                {
+                    checkScale(); //jika belum mengecek skala, langsung mengecek skala
+                    check = true;
+                }
                 else                              //jika sudah mengecek skala
                 {
-                    Point.gameObject.SetActive(false);
+                    statText.text = "done";
 
-                    getPos();                     //mengkalkulasikan untuk mendapat posisi di ruang virtual
-                    getRot();                     //mengkalkulasikan untuk mendapat rotasi di ruang virtual
+                    if (Point != null) Point.gameObject.SetActive(false);
+
+                    getPos();                           //mengkalkulasikan untuk mendapat posisi di ruang virtual
+                    getRot();                           //mengkalkulasikan untuk mendapat rotasi di ruang virtual
 
                     hand.transform.position = new Vector3(pos[0], pos[1], pos[2]);          //update posisi objek "tangan" di ruang virtual berdasarkan posisi asli
                     hand.transform.rotation = new Quaternion(rot[0], rot[1], rot[2], 0);    //update rotasi objek "tangan" di ruang virtual berdasarkan rotasi asli
-                    Point.gameObject.SetActive(false);                                      //menghilangkan object point
+
+                    if (handState != "Move" && handState != "Grep" && handState != "Choose")
+                    {
+                        isMove = false;
+                        isChoose = false;
+                        isGrep = false;
+                    }
 
                     if (isMove)         //jika tangan menyentuh objek dan berposisi "move"
                     {
                         target.gameObject.transform.position = hand.transform.position + selisihJarak;      //mengupdate posisi objek berdasarkan tangan
-                    }else if (isGrep)   //jika tangan menyentuh objek dan berposisi "grep"
+                        statText.text = "Moving";
+                    }
+                    else if (isGrep)   //jika tangan menyentuh objek dan berposisi "grep"
                     {
                         float averageScale = (selisihJarak.x + selisihJarak.y + selisihJarak.z) / 3f;                               //menghitung rata rata selisih
                         target.gameObject.transform.localScale = new Vector3(averageScale * 2, averageScale * 2, averageScale * 2); //mengupdate ukuran objek berdasarkan posisi tangan
+                        statText.text = "Scaling";
                     }
                 }
             }
@@ -118,12 +136,6 @@ public class HandTrack : MonoBehaviour
             {
                 isMove = false;
                 isChoose = true;
-                isGrep = false;
-            }
-            else //selain itu
-            {
-                isMove = false;
-                isChoose = false;
                 isGrep = false;
             }
         }
@@ -170,8 +182,6 @@ public class HandTrack : MonoBehaviour
         rotScale[0] = Point.transform.rotation.x / rawRot[0];
         rotScale[1] = Point.transform.rotation.y / rawRot[1];
         rotScale[2] = Point.transform.rotation.z / rawRot[2];
-
-        check = true;
     }
 
     /// <summary>

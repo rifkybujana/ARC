@@ -8,6 +8,8 @@ TagManager:
   - Selectable
   - Butt
   - point
+  - The Canvas
+  - Info Text
   layers:
   - Default
   - TransparentFX
