@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using GoogleARCore;
+using TechTweaking.Bluetooth;
 
 public class HandTrack : MonoBehaviour
 {
-    [Tooltip("bluetooth manager")]
-    [SerializeField] private BluetoothController BTController;  //bluetooth manager
     [Tooltip("Object tangan")]
     [SerializeField] private GameObject hand;                   //object tangan
     [Tooltip("tag object yang ingin dikendalikan")]
@@ -20,6 +19,7 @@ public class HandTrack : MonoBehaviour
     [HideInInspector] public GameObject buttonChoose;
 
     public GameObject Point;                  //point untuk membandingkan posisi tangan di real life dengan virtual 
+    public GameObject Object;
 
     public Text statText;
 
@@ -29,83 +29,148 @@ public class HandTrack : MonoBehaviour
     float[] posScale, rotScale;
     float[] pos, rot;
 
-    bool check = false;                                     //memastikan bahwa hanya mengecek skala sekali saja
+    [HideInInspector] public bool check = false;                                     //memastikan bahwa hanya mengecek skala sekali saja
     [HideInInspector] public bool started = false;                                   //memulai hanya sekali
     bool isMove, isChoose, isGrep;                          //tangan sedang apa?
     bool isPlaced = false;
 
     private Vector3 selisihJarak;
 
-    [Space(5)] public Text deviceNotConnected;
+    [HideInInspector] public BluetoothDevice device;
+    public Text statusText;
+
+    private string dataRaw;
+    public string DeviceName;
+    private string debugText;
+
+
+    private void Awake()                                    //jika script dimulai
+    {
+        device = new BluetoothDevice();
+
+        if (BluetoothAdapter.isBluetoothEnabled()) connect();
+        else
+        {
+            statusText.text = "Status: Please Enable Your Bluetooth";
+
+            BluetoothAdapter.OnBluetoothStateChanged += HandleOnBluetoothStateChanged;
+            BluetoothAdapter.listenToBluetoothState();
+
+            BluetoothAdapter.askEnableBluetooth();
+        }
+    }
+
 
     // Start is called before the first frame update
-    void Start()
+    void Start()                                            //jika aplikasi dimulai
     {
         check = false;
         started = false;
-        statText.text = "Not Started";
+
+        BluetoothAdapter.OnDeviceOFF += HandleOnDeviceOff;
+        BluetoothAdapter.OnDeviceNotFound += HandleOnDeviceNotFound;
+
+        statText.text = "Not started yet";
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (BTController.device.IsConnected)            //jika sudah terhubung ke device
+        byte[] msg = device.read();                                     //data berupa byte
+
+        dataRaw = System.Text.ASCIIEncoding.ASCII.GetString(msg);       //convert data menjadi string
+
+        statusText.text = "MSG: " + dataRaw;                            //print data yang diterima ke screen
+        data = dataRaw.Split(',');                                      //memisahkan data
+
+        /*  convert data rotasi dan posisi menjadi float
+         *  data[data ke] >> rawPos
+         */
+        float.TryParse(data[0], out rawPos[0]);
+        float.TryParse(data[1], out rawPos[1]);
+        float.TryParse(data[2], out rawPos[2]);
+
+        float.TryParse(data[3], out rawPos[3]);
+        float.TryParse(data[4], out rawPos[4]);
+        float.TryParse(data[5], out rawPos[5]);
+
+        // convert data handStat ke interger
+        int convrt;
+        int.TryParse(data[6], out convrt);
+
+        // mengconvert agar tau jika tangan sedang apa
+        switch (convrt)
         {
-            deviceNotConnected.gameObject.SetActive(false);     //menghilangkan tulisan "device not connected" di screen
+            case 1:
+                handState = "Start";
+                break;
+            case 2:
+                handState = "Move";
+                break;
+            case 3:
+                handState = "Grep";
+                break;
+            case 4:
+                handState = "Choose";
+                break;
+            default:
+                handState = " ";
+                break;
+        }
 
-            GetData();                                  //get data of hands
+        // jika handState = start atau sudah dimulai
+        if (handState == "Start" || started == true)
+        {
+            started = true;
+            statText.text = "Started";
 
-            Point = GameObject.Find("Pointer");
-
-            if (handState == "Start") started = true;   //jika tangan memberi data "Start"
-
-            if (started)                                //jika sudah dimulai
+            if (check == false) // jika belum mengecek
             {
-                statText.text = "Started";
-                if (Point == null) Point = GameObject.FindGameObjectWithTag("point");    //mencari objek point jika objeknya null
+                checkScale();                       //mendapatkan skala
+                check = true;                       //objek telah di cek
+            }
+            else                                    //jika sudah mengecek skala
+            {
+                getPos();                           //mengkalkulasikan untuk mendapat posisi di ruang virtual
+                getRot();                           //mengkalkulasikan untuk mendapat rotasi di ruang virtual
 
-                if (check == false)
+                hand.transform.position = new Vector3(pos[0], pos[1], pos[2]);              //mengganti posisi objek
+                hand.transform.rotation = new Quaternion(rot[0], rot[1], rot[2], 0);        //mengganti rotasi objek
+
+                if (isMove)         //jika tangan menyentuh objek dan berposisi "move"
                 {
-                    checkScale(); //jika belum mengecek skala, langsung mengecek skala
-                    check = true;
+                    target.gameObject.transform.position = hand.transform.position + selisihJarak;      //mengupdate posisi objek berdasarkan tangan
                 }
-                else                              //jika sudah mengecek skala
+                else if (isGrep)    //jika tangan menyentuh objek dan berposisi "grep"
                 {
-                    statText.text = "done";
-
-                    if (Point != null) Point.gameObject.SetActive(false);
-
-                    getPos();                           //mengkalkulasikan untuk mendapat posisi di ruang virtual
-                    getRot();                           //mengkalkulasikan untuk mendapat rotasi di ruang virtual
-
-                    hand.transform.position = new Vector3(pos[0], pos[1], pos[2]);          //update posisi objek "tangan" di ruang virtual berdasarkan posisi asli
-                    hand.transform.rotation = new Quaternion(rot[0], rot[1], rot[2], 0);    //update rotasi objek "tangan" di ruang virtual berdasarkan rotasi asli
-
-                    if (handState != "Move" && handState != "Grep" && handState != "Choose")
-                    {
-                        isMove = false;
-                        isChoose = false;
-                        isGrep = false;
-                    }
-
-                    if (isMove)         //jika tangan menyentuh objek dan berposisi "move"
-                    {
-                        target.gameObject.transform.position = hand.transform.position + selisihJarak;      //mengupdate posisi objek berdasarkan tangan
-                        statText.text = "Moving";
-                    }
-                    else if (isGrep)   //jika tangan menyentuh objek dan berposisi "grep"
-                    {
-                        float averageScale = (selisihJarak.x + selisihJarak.y + selisihJarak.z) / 3f;                               //menghitung rata rata selisih
-                        target.gameObject.transform.localScale = new Vector3(averageScale * 2, averageScale * 2, averageScale * 2); //mengupdate ukuran objek berdasarkan posisi tangan
-                        statText.text = "Scaling";
-                    }
+                    float averageScale = (selisihJarak.x + selisihJarak.y + selisihJarak.z) / 3f;                               //menghitung rata rata selisih
+                    target.gameObject.transform.localScale = new Vector3(averageScale * 2, averageScale * 2, averageScale * 2); //mengupdate ukuran objek berdasarkan posisi tangan
                 }
+            }
+
+            if (data[6] != "Move" && data[6] != "Grep" && data[6] != "Choose")
+            {
+                isMove = false;
+                isChoose = false;
+                isGrep = false;
             }
         }
         else
         {
-            deviceNotConnected.gameObject.SetActive(true);      //memunculkan tulisan di screen "device not connected"
+            statText.text = handState;
         }
+
+        if (check)
+        {
+            Object.gameObject.SetActive(true);
+            Point.gameObject.SetActive(false);
+        }
+        else
+        {
+            Object.gameObject.SetActive(true);
+            Point.gameObject.SetActive(false);
+        }
+        
     }
     
     /// <summary>
@@ -149,24 +214,47 @@ public class HandTrack : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// mendapatkan data yang dikirim oleh hardware melalui bluetooth dengan bluetooth module HC-05
-    /// </summary>
-    void GetData()
+    private void connect()
     {
-        data = BTController.data.Split(char.Parse(",")); //memisahkan data dari  (x,y,z,x,y,z,pos) ==> (x) (y) (z) (x) (y) (z) (pos)
+        statusText.text = "Status : Trying To Connect";
+        device.Name = DeviceName;
+        device.setEndByte(10);
+        statusText.text = "Status : Connecting";
 
-        handState = data[6];
+        device.connect();
+    }
 
-        for (int i = 0; i < 2; i++)
+    void HandleOnBluetoothStateChanged(bool isBtEnabled)
+    {
+        if (isBtEnabled)
         {
-            float.TryParse(data[i], out rawPos[i]);
+            connect();
+            BluetoothAdapter.OnBluetoothStateChanged -= HandleOnBluetoothStateChanged;
+            BluetoothAdapter.stopListenToBluetoothState();
         }
+    }
 
-        for (int i = 3; i < 5; i++)
-        {
-            float.TryParse(data[i], out rawRot[i - 3]);
-        }
+    void HandleOnDeviceOff(BluetoothDevice dev)
+    {
+        if (!string.IsNullOrEmpty(dev.Name)) statusText.text = "Status : can't connect to '" + dev.Name + "', device is OFF";
+        else if (!string.IsNullOrEmpty(dev.MacAddress)) statusText.text = "Status : can't connect to '" + dev.MacAddress + "', device is OFF";
+    }
+
+    void HandleOnDeviceNotFound(BluetoothDevice dev)
+    {
+        if (!string.IsNullOrEmpty(dev.Name)) statusText.text = "Status : Can't find a device with the name '" + dev.Name + "', device might be OFF or not paird yet ";
+    }
+
+    public void disconnect()
+    {
+        if (device != null)
+            device.close();
+    }
+
+    void OnDestroy()
+    {
+        BluetoothAdapter.OnDeviceOFF -= HandleOnDeviceOff;
+        BluetoothAdapter.OnDeviceNotFound -= HandleOnDeviceNotFound;
     }
 
     /// <summary>
@@ -190,10 +278,9 @@ public class HandTrack : MonoBehaviour
     /// </summary>
     void getPos()
     {
-        for (int i = 0; i < posScale.Length; i++)
-        {
-            pos[i] = rawPos[i] * posScale[i];
-        }
+        pos[0] = rawPos[0] * posScale[0];
+        pos[1] = rawPos[1] * posScale[1];
+        pos[2] = rawPos[2] * posScale[2];
     }
 
     /// <summary>
@@ -202,9 +289,8 @@ public class HandTrack : MonoBehaviour
     /// </summary>
     void getRot()
     {
-        for (int i = 0; i < rotScale.Length; i++)
-        {
-            rot[i] = rawRot[i] * rotScale[i];
-        }
+        rot[0] = rawRot[0] * rotScale[0];
+        rot[1] = rawRot[1] * rotScale[1];
+        rot[2] = rawRot[2] * rotScale[2];
     }
 }

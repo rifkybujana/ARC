@@ -11,8 +11,8 @@ public class ButtonManager : MonoBehaviour
     
     [SerializeField] private string[] info;                         //info yang ingin ditampilkan
 
-    Text infoText;                                                  //Text tempat info
-    Canvas canvas;                                                  //canvas
+    public Text infoText;                                                  //Text tempat info
+    public Canvas canvas;                                                  //canvas
     
     [HideInInspector] public bool isRotate;                         //sedang rotasi?
 

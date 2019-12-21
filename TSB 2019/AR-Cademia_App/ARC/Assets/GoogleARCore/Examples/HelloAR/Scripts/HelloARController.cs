@@ -58,19 +58,12 @@ namespace GoogleARCore.Examples.HelloAR
         /// </summary>
         public GameObject GameObjectPointPrefab;
 
-        [Space(5)]
-        [Header("Point")]
-        public GameObject Pointer;
-
-        [Space(5)]
-        public HandTrack Hand;
-
         bool isPlaced;
 
         /// <summary>
         /// The rotation in degrees need to apply to prefab when it is placed.
         /// </summary>
-        private const float k_PrefabRotation = 180.0f;
+        private const float k_PrefabRotation = 0f;
 
         /// <summary>
         /// True if the app is in the process of quitting due to an ARCore connection error,
@@ -130,23 +123,16 @@ namespace GoogleARCore.Examples.HelloAR
                     // Choose the prefab based on the Trackable that got hit.
                     GameObject prefab;
 
-                    if (Hand.started)
+                    if (hit.Trackable is FeaturePoint)
                     {
-                        if (hit.Trackable is FeaturePoint)
+                        prefab = GameObjectPointPrefab;
+                    }
+                    else if (hit.Trackable is DetectedPlane)
+                    {
+                        DetectedPlane detectedPlane = hit.Trackable as DetectedPlane;
+                        if (detectedPlane.PlaneType == DetectedPlaneType.Vertical)
                         {
-                            prefab = GameObjectPointPrefab;
-                        }
-                        else if (hit.Trackable is DetectedPlane)
-                        {
-                            DetectedPlane detectedPlane = hit.Trackable as DetectedPlane;
-                            if (detectedPlane.PlaneType == DetectedPlaneType.Vertical)
-                            {
-                                prefab = GameObjectVerticalPlanePrefab;
-                            }
-                            else
-                            {
-                                prefab = GameObjectHorizontalPlanePrefab;
-                            }
+                            prefab = GameObjectVerticalPlanePrefab;
                         }
                         else
                         {
@@ -155,37 +141,29 @@ namespace GoogleARCore.Examples.HelloAR
                     }
                     else
                     {
-                        prefab = Pointer;
+                        prefab = GameObjectHorizontalPlanePrefab;
                     }
-                    
 
-                    if (isPlaced) {
-                        var gameObject = GameObject.Find(prefab.name);
+                    prefab.gameObject.SetActive(true);
 
-                        gameObject.transform.position = hit.Pose.position;
-                        gameObject.transform.Rotate(0, k_PrefabRotation, 0, Space.Self);
-                        var anchor = hit.Trackable.CreateAnchor(hit.Pose);
-                        gameObject.transform.parent = anchor.transform;
-                    }
-                    else
-                    {
-                        var gameObject = Instantiate(prefab, hit.Pose.position, hit.Pose.rotation);
-                        
-                        // Compensate for the hitPose rotation facing away from the raycast (i.e.
-                        // camera).
-                        gameObject.transform.Rotate(0, k_PrefabRotation, 0, Space.Self);
+                    prefab.transform.position = hit.Pose.position;
+                    prefab.transform.rotation = hit.Pose.rotation;
 
-                        // Create an anchor to allow ARCore to track the hitpoint as understanding of
-                        // the physical world evolves.
-                        var anchor = hit.Trackable.CreateAnchor(hit.Pose);
+                    // Compensate for the hitPose rotation facing away from the raycast (i.e.
+                    // camera).
+                    prefab.transform.Rotate(0, -k_PrefabRotation, 0, Space.Self);
 
-                        // Make game object a child of the anchor.
-                        gameObject.transform.parent = anchor.transform;
+                    // Create an anchor to allow ARCore to track the hitpoint as understanding of
+                    // the physical world evolves.
+                    var anchor = hit.Trackable.CreateAnchor(hit.Pose);
 
-                        isPlaced = true;
-                    }
+                    // Make game object a child of the anchor.
+                    prefab.transform.parent = anchor.transform;
+
+                    isPlaced = true;
                 }
             }
+            
         }
 
         /// <summary>

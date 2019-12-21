@@ -7,12 +7,8 @@ public class Anim_Atom : MonoBehaviour
     public GameObject[] Electron;
     public GameObject IntiAtom;
     public GameObject GameManager;
-    public ButtonManager ButtonMan;
-
-    private void Start()
-    {
-        ButtonMan = GameManager.GetComponent<ButtonManager>();
-    }
+    public Controller ButtonMan;
+    
 
     // Update is called once per frame
     void Update()

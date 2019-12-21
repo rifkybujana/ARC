@@ -15,6 +15,8 @@ public class BluetoothController : MonoBehaviour
     [SerializeField]
     private string DeviceName;      //Nama device HC-05
 
+    public Text status;
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -31,10 +33,31 @@ public class BluetoothController : MonoBehaviour
         }
     }
 
+
+    [HideInInspector] public bool started;
+
     private void Start()
     {
         BluetoothAdapter.OnDeviceOFF += HandleOnDeviceOff;
         BluetoothAdapter.OnDeviceNotFound += HandleOnDeviceNotFound;
+    }
+    
+
+    private void Update()
+    {
+        byte[] msg = device.read();
+
+        if (msg != null && msg.Length > 0)
+        {
+            data = System.Text.ASCIIEncoding.ASCII.GetString(msg);
+
+            statusText.text = "MSG : " + data;
+        }
+
+        string[] finalData = data.Split(',');
+        status.text = finalData[6];
+
+        if (finalData[6] == "Start") started = true;
     }
 
     private void connect()
@@ -42,7 +65,6 @@ public class BluetoothController : MonoBehaviour
         statusText.text = "Status : Trying To Connect";
         device.Name = DeviceName;
         device.setEndByte(10);
-        device.ReadingCoroutine = ManageConnection;
         statusText.text = "Status : Connecting";
 
         device.connect();
@@ -73,31 +95,6 @@ public class BluetoothController : MonoBehaviour
     {
         if (device != null)
             device.close();
-    }
-
-    IEnumerator ManageConnection(BluetoothDevice device)
-    {
-        statusText.text = "Status : Connected & Can read";
-
-        while (device.IsReading)
-        {
-            if (device.IsDataAvailable)
-            {
-                byte[] msg = device.read();
-
-                if (msg != null && msg.Length > 0)
-                {
-                    string content = System.Text.ASCIIEncoding.ASCII.GetString(msg);
-                    statusText.text = "MSG : " + content;
-
-                    data = content;
-                }
-            }
-
-            yield return null;
-        }
-
-        statusText.text = "Status : Done Reading";
     }
 
     void OnDestroy()

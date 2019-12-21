@@ -11,7 +11,7 @@ public class GameMan : MonoBehaviour
     public GameObject objectToPlace;                               //object yang ingin di taruh
     public GameObject pointer;                                     //point
 
-    [SerializeField] private float k_PrefabRotation = 180.0f;       //rotasi object
+    [SerializeField] private float k_PrefabRotation = 0f;       //rotasi object
 
     public GameObject point;                                        //point untuk membandingkan posisi real dan virtual
 
